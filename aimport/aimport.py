@@ -9,7 +9,7 @@ I disagree. This is an ugly workaround.
 """
 
 
-def add(pa, pa2=None):
+def add(pa=sys.path[0], pa2=None):
     if os.path.isfile(pa):
         pa = os.path.dirname(pa)
 
@@ -32,7 +32,7 @@ def add(pa, pa2=None):
     for e in tmp:
         if not e in sys.path:
             sys.path.append(e)
+    # print(f"sys.path: {sys.path}")
 
 
-add(sys.path[0])
-#print(f"sys.path: {sys.path}")
+add()
