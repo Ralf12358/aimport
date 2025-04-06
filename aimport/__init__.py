@@ -9,7 +9,7 @@ I disagree. This is an ugly workaround.
 """
 
 
-def add(pa=sys.path[0], pa2=None):
+def add_path_to_sys_path(pa=sys.path[0], pa2=None):
     if os.path.isfile(pa):
         pa = os.path.dirname(pa)
 
@@ -18,16 +18,16 @@ def add(pa=sys.path[0], pa2=None):
             pa2 = os.path.dirname(pa2)
         pa = os.path.join(pa, pa2)
 
-    add = [pa]
+    add_path_to_sys_path = [pa]
     while True:
         if pathlib.Path((os.path.join(pa, "__init__.py"))).exists():
-            add.append(pa)
+            add_path_to_sys_path.append(pa)
         pn = os.path.dirname(pa)
         if pn == pa:
             break
         pa = pn
 
-    tmp = add + sys.path
+    tmp = add_path_to_sys_path + sys.path
     sys.path = []
     for e in tmp:
         if not e in sys.path:
@@ -35,4 +35,4 @@ def add(pa=sys.path[0], pa2=None):
     # print(f"sys.path: {sys.path}")
 
 
-add()
+add_path_to_sys_path()
