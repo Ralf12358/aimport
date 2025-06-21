@@ -1,0 +1,41 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "aimport"
+version = "1.1.0"
+description = "A minimal library for smart Python imports with automatic path resolution"
+readme = "README.md"
+requires-python = ">=3.8"
+license = "MIT"
+authors = [{ name = "aimport contributors" }]
+keywords = ["import", "path", "module", "python", "sys.path"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Topic :: System :: Filesystems",
+]
+dependencies = []
+
+[project.optional-dependencies]
+dev = ["pytest>=7.0.0,<8.4.0"]
+
+[project.urls]
+Homepage = "https://github.com/aimport/aimport"
+Repository = "https://github.com/aimport/aimport"
+"Bug Tracker" = "https://github.com/aimport/aimport/issues"
+
+[dependency-groups]
+dev = [
+    "pytest>=8.3.5",
+    "twine>=6.1.0",
+]
