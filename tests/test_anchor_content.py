@@ -193,7 +193,9 @@ class TestFindAnchorFilesWithContent:
         target.mkdir()
 
         # Create anchor file with mix of valid/invalid paths
-        (level1 / "__aimport__").write_text(f"valid_target\n/nonexistent/path\nrelative_target")
+        (level1 / "__aimport__").write_text(
+            f"valid_target\n/nonexistent/path\nrelative_target"
+        )
 
         result = _find_anchor_files_in_tree(str(level1), "__aimport__")
         # Should contain the valid target
@@ -400,7 +402,9 @@ class TestAddPathToSysPathWithContent:
         valid_target.mkdir()
 
         # Create anchor file with mix of valid/invalid paths
-        (start_dir / "__aimport__").write_text("valid\n/nonexistent/path1\n/nonexistent/path2")
+        (start_dir / "__aimport__").write_text(
+            "valid\n/nonexistent/path1\n/nonexistent/path2"
+        )
 
         with patch("sys.path", [str(start_dir)]):
             add_path_to_sys_path(str(start_dir))

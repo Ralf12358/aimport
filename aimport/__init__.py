@@ -26,7 +26,7 @@ def _read_anchor_file_content(anchor_file_path):
             content = anchor_path.read_text().strip()
             if content:
                 # Split by lines and filter out empty lines after stripping
-                paths = [line.strip() for line in content.split('\n') if line.strip()]
+                paths = [line.strip() for line in content.split("\n") if line.strip()]
                 return paths
     except (OSError, UnicodeDecodeError):
         pass
@@ -84,7 +84,7 @@ def _find_anchor_files_in_tree(start_path, anchor_filename):
                         any_valid_path = True
                     else:
                         any_invalid_path = True
-                
+
                 # Add anchor file location as fallback if any invalid paths found
                 if any_invalid_path:
                     if str(current_path) == "." and original_start_path == "":
@@ -129,7 +129,7 @@ def _update_sys_path_unique(new_paths):
         if path not in seen:
             seen.add(path)
             unique_paths.append(path)
-    
+
     sys.path[:] = unique_paths
 
 
