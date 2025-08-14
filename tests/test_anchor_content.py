@@ -20,7 +20,7 @@ class TestReadAnchorFileContent:
         anchor_file.write_text("  /some/path  \n")
 
         result = _read_anchor_file_content(anchor_file)
-        assert result == "/some/path"
+        assert result == ["/some/path"]
 
     def test_read_anchor_file_empty(self, tmp_path):
         """Test reading empty anchor file."""
@@ -28,7 +28,7 @@ class TestReadAnchorFileContent:
         anchor_file.write_text("")
 
         result = _read_anchor_file_content(anchor_file)
-        assert result is None
+        assert result == []
 
     def test_read_anchor_file_whitespace_only(self, tmp_path):
         """Test reading anchor file with only whitespace."""
@@ -36,14 +36,14 @@ class TestReadAnchorFileContent:
         anchor_file.write_text("   \n\t  ")
 
         result = _read_anchor_file_content(anchor_file)
-        assert result is None
+        assert result == []
 
     def test_read_anchor_file_nonexistent(self, tmp_path):
         """Test reading non-existent anchor file."""
         anchor_file = tmp_path / "__aimport__"
 
         result = _read_anchor_file_content(anchor_file)
-        assert result is None
+        assert result == []
 
     def test_read_anchor_file_directory(self, tmp_path):
         """Test reading anchor file that is actually a directory."""
@@ -51,7 +51,7 @@ class TestReadAnchorFileContent:
         anchor_dir.mkdir()
 
         result = _read_anchor_file_content(anchor_dir)
-        assert result is None
+        assert result == []
 
     def test_read_anchor_file_unicode_error(self, tmp_path):
         """Test reading anchor file with invalid unicode."""
@@ -60,7 +60,31 @@ class TestReadAnchorFileContent:
         anchor_file.write_bytes(b"\xff\xfe\x00\x00")
 
         result = _read_anchor_file_content(anchor_file)
-        assert result is None
+        assert result == []
+
+    def test_read_anchor_file_multiple_paths(self, tmp_path):
+        """Test reading anchor file with multiple paths."""
+        anchor_file = tmp_path / "__aimport__"
+        anchor_file.write_text("/path/one\n/path/two\n/path/three")
+
+        result = _read_anchor_file_content(anchor_file)
+        assert result == ["/path/one", "/path/two", "/path/three"]
+
+    def test_read_anchor_file_multiple_paths_with_empty_lines(self, tmp_path):
+        """Test reading anchor file with multiple paths and empty lines."""
+        anchor_file = tmp_path / "__aimport__"
+        anchor_file.write_text("/path/one\n\n/path/two\n   \n/path/three\n")
+
+        result = _read_anchor_file_content(anchor_file)
+        assert result == ["/path/one", "/path/two", "/path/three"]
+
+    def test_read_anchor_file_single_path_multiline_format(self, tmp_path):
+        """Test reading anchor file with single path in multiline format."""
+        anchor_file = tmp_path / "__aimport__"
+        anchor_file.write_text("  /single/path  \n")
+
+        result = _read_anchor_file_content(anchor_file)
+        assert result == ["/single/path"]
 
 
 class TestResolveAnchorPath:
@@ -116,8 +140,8 @@ class TestResolveAnchorPath:
 class TestFindAnchorFilesWithContent:
     """Tests for _find_anchor_files_in_tree with content reading."""
 
-    def test_find_anchor_files_with_absolute_paths(self, tmp_path):
-        """Test finding anchor files with absolute paths in content."""
+    def test_find_anchor_files_with_multiple_absolute_paths(self, tmp_path):
+        """Test finding anchor files with multiple absolute paths in content."""
         # Create directory structure
         level1 = tmp_path / "level1"
         level2 = level1 / "level2"
@@ -126,16 +150,85 @@ class TestFindAnchorFilesWithContent:
         # Create target directories
         target1 = tmp_path / "target1"
         target2 = tmp_path / "target2"
+        target3 = tmp_path / "target3"
         target1.mkdir()
         target2.mkdir()
+        target3.mkdir()
 
-        # Create anchor files with absolute paths
-        (level1 / "__aimport__").write_text(str(target1))
-        (tmp_path / "__aimport__").write_text(str(target2))
+        # Create anchor file with multiple absolute paths
+        (level1 / "__aimport__").write_text(f"{target1}\n{target2}\n{target3}")
 
         result = _find_anchor_files_in_tree(str(level2), "__aimport__")
         assert str(target1) in result
         assert str(target2) in result
+        assert str(target3) in result
+
+    def test_find_anchor_files_with_multiple_relative_paths(self, tmp_path):
+        """Test finding anchor files with multiple relative paths in content."""
+        # Create directory structure
+        level1 = tmp_path / "level1"
+        level2 = level1 / "level2"
+        level2.mkdir(parents=True)
+
+        # Create target directories
+        target1 = level1 / "rel_target1"
+        target2 = level1 / "rel_target2"
+        target1.mkdir()
+        target2.mkdir()
+
+        # Create anchor file with multiple relative paths
+        (level1 / "__aimport__").write_text("rel_target1\nrel_target2")
+
+        result = _find_anchor_files_in_tree(str(level2), "__aimport__")
+        assert str(target1.resolve()) in result
+        assert str(target2.resolve()) in result
+
+    def test_find_anchor_files_mixed_valid_invalid_paths(self, tmp_path):
+        """Test anchor file with mix of valid and invalid paths."""
+        level1 = tmp_path / "level1"
+        level1.mkdir()
+
+        # Create one valid target
+        target = level1 / "valid_target"
+        target.mkdir()
+
+        # Create anchor file with mix of valid/invalid paths
+        (level1 / "__aimport__").write_text(f"valid_target\n/nonexistent/path\nrelative_target")
+
+        result = _find_anchor_files_in_tree(str(level1), "__aimport__")
+        # Should contain the valid target
+        assert str(target.resolve()) in result
+        # Should fall back to anchor file location for invalid paths
+        assert str(level1) in result
+
+    def test_find_anchor_files_multiple_files_multiple_paths(self, tmp_path):
+        """Test multiple anchor files each with multiple paths."""
+        # Create directory structure
+        level1 = tmp_path / "level1"
+        level2 = level1 / "level2"
+        level3 = level2 / "level3"
+        level3.mkdir(parents=True)
+
+        # Create target directories
+        target1 = tmp_path / "target1"
+        target2 = tmp_path / "target2"
+        target3 = tmp_path / "target3"  # Changed: create relative to tmp_path
+        target4 = tmp_path / "target4"  # Changed: create relative to tmp_path
+        target1.mkdir()
+        target2.mkdir()
+        target3.mkdir()
+        target4.mkdir()
+
+        # Create anchor files with multiple paths each
+        (level2 / "__aimport__").write_text(f"{target1}\n{target2}")
+        (tmp_path / "__aimport__").write_text("target3\ntarget4")
+
+        result = _find_anchor_files_in_tree(str(level3), "__aimport__")
+        assert str(target1) in result
+        assert str(target2) in result
+        # Note: target3 and target4 are resolved relative to tmp_path
+        assert str((tmp_path / "target3").resolve()) in result
+        assert str((tmp_path / "target4").resolve()) in result
 
     def test_find_anchor_files_with_relative_paths(self, tmp_path):
         """Test finding anchor files with relative paths in content."""
@@ -225,21 +318,95 @@ class TestAddPathToSysPathWithContent:
         """Restore original sys.path."""
         sys.path[:] = self.original_sys_path
 
-    def test_add_path_with_anchor_content_absolute(self, tmp_path):
-        """Test adding paths from anchor file with absolute path content."""
+    def test_add_path_with_multiple_anchor_paths_absolute(self, tmp_path):
+        """Test adding multiple paths from anchor file with absolute paths."""
         # Create directories
         start_dir = tmp_path / "start"
-        target_dir = tmp_path / "target"
+        target1 = tmp_path / "target1"
+        target2 = tmp_path / "target2"
+        target3 = tmp_path / "target3"
         start_dir.mkdir()
-        target_dir.mkdir()
+        target1.mkdir()
+        target2.mkdir()
+        target3.mkdir()
 
-        # Create anchor file with absolute path
-        (start_dir / "__aimport__").write_text(str(target_dir))
+        # Create anchor file with multiple absolute paths
+        (start_dir / "__aimport__").write_text(f"{target1}\n{target2}\n{target3}")
 
         with patch("sys.path", [str(start_dir)]):
             add_path_to_sys_path(str(start_dir))
 
-            assert str(target_dir) in sys.path
+            assert str(target1) in sys.path
+            assert str(target2) in sys.path
+            assert str(target3) in sys.path
+            assert str(start_dir) in sys.path
+
+    def test_add_path_with_multiple_anchor_paths_relative(self, tmp_path):
+        """Test adding multiple paths from anchor file with relative paths."""
+        # Create directories
+        start_dir = tmp_path / "start"
+        target1 = start_dir / "rel1"
+        target2 = start_dir / "rel2"
+        start_dir.mkdir()
+        target1.mkdir()
+        target2.mkdir()
+
+        # Create anchor file with multiple relative paths
+        (start_dir / "__aimport__").write_text("rel1\nrel2")
+
+        with patch("sys.path", [str(start_dir)]):
+            add_path_to_sys_path(str(start_dir))
+
+            assert str(target1.resolve()) in sys.path
+            assert str(target2.resolve()) in sys.path
+            assert str(start_dir) in sys.path
+
+    def test_add_path_multiple_files_multiple_paths_each(self, tmp_path):
+        """Test with multiple anchor files each containing multiple paths."""
+        # Create directory structure
+        level1 = tmp_path / "level1"
+        level2 = level1 / "level2"
+        level3 = level2 / "level3"
+        level3.mkdir(parents=True)
+
+        # Create target directories
+        target1 = tmp_path / "target1"
+        target2 = tmp_path / "target2"
+        target3 = level1 / "target3"
+        target4 = level1 / "target4"
+        target1.mkdir()
+        target2.mkdir()
+        target3.mkdir()
+        target4.mkdir()
+
+        # Create anchor files with multiple paths each
+        (level2 / "__aimport__").write_text(f"{target1}\n{target2}")
+        (level1 / "__aimport__").write_text("target3\ntarget4")
+
+        with patch("sys.path", [str(level3)]):
+            add_path_to_sys_path(str(level3))
+
+            assert str(target1) in sys.path
+            assert str(target2) in sys.path
+            assert str((level1 / "target3").resolve()) in sys.path
+            assert str((level1 / "target4").resolve()) in sys.path
+            assert str(level3) in sys.path
+
+    def test_add_path_mixed_valid_invalid_multiple_paths(self, tmp_path):
+        """Test with anchor file containing mix of valid and invalid paths."""
+        start_dir = tmp_path / "start"
+        valid_target = start_dir / "valid"
+        start_dir.mkdir()
+        valid_target.mkdir()
+
+        # Create anchor file with mix of valid/invalid paths
+        (start_dir / "__aimport__").write_text("valid\n/nonexistent/path1\n/nonexistent/path2")
+
+        with patch("sys.path", [str(start_dir)]):
+            add_path_to_sys_path(str(start_dir))
+
+            assert str(valid_target.resolve()) in sys.path
+            # Should fall back to anchor file location for invalid paths
             assert str(start_dir) in sys.path
 
     def test_add_path_with_anchor_content_relative(self, tmp_path):

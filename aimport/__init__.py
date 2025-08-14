@@ -19,16 +19,18 @@ def _resolve_directory_path(path):
 
 
 def _read_anchor_file_content(anchor_file_path):
-    """Read and return stripped content of anchor file if it exists and contains a valid path."""
+    """Read and return list of paths from anchor file if it exists and contains valid paths."""
     try:
         anchor_path = Path(anchor_file_path)
         if anchor_path.exists() and anchor_path.is_file():
             content = anchor_path.read_text().strip()
             if content:
-                return content
+                # Split by lines and filter out empty lines after stripping
+                paths = [line.strip() for line in content.split('\n') if line.strip()]
+                return paths
     except (OSError, UnicodeDecodeError):
         pass
-    return None
+    return []
 
 
 def _resolve_anchor_path(content, anchor_file_dir):
@@ -69,21 +71,28 @@ def _find_anchor_files_in_tree(start_path, anchor_filename):
     while True:
         anchor_file_path = current_path / anchor_filename
         if anchor_file_path.exists():
-            # Check if anchor file contains a valid path
-            anchor_content = _read_anchor_file_content(anchor_file_path)
-            if anchor_content:
-                # Use path from file content
-                resolved_path = _resolve_anchor_path(anchor_content, current_path)
-                if resolved_path and resolved_path.exists():
-                    found_paths.append(str(resolved_path))
-                else:
-                    # Fall back to anchor file location if path doesn't exist
+            # Check if anchor file contains valid paths
+            anchor_paths = _read_anchor_file_content(anchor_file_path)
+            if anchor_paths:
+                # Process each path from file content
+                any_valid_path = False
+                any_invalid_path = False
+                for anchor_content in anchor_paths:
+                    resolved_path = _resolve_anchor_path(anchor_content, current_path)
+                    if resolved_path and resolved_path.exists():
+                        found_paths.append(str(resolved_path))
+                        any_valid_path = True
+                    else:
+                        any_invalid_path = True
+                
+                # Add anchor file location as fallback if any invalid paths found
+                if any_invalid_path:
                     if str(current_path) == "." and original_start_path == "":
                         found_paths.append("")
                     else:
                         found_paths.append(str(current_path))
             else:
-                # Use anchor file location (empty file or no valid path)
+                # Use anchor file location (empty file or no valid paths)
                 if str(current_path) == "." and original_start_path == "":
                     found_paths.append("")
                 else:
@@ -112,6 +121,16 @@ def _update_sys_path_unique(new_paths):
     for path in existing_paths:
         if path not in sys.path:
             sys.path.append(path)
+
+    # Remove duplicates: iterate from beginning, if duplicate found later, remove later one
+    seen = set()
+    unique_paths = []
+    for path in sys.path:
+        if path not in seen:
+            seen.add(path)
+            unique_paths.append(path)
+    
+    sys.path[:] = unique_paths
 
 
 def add_path_to_sys_path(primary_path=sys.path[0], secondary_path=None):
